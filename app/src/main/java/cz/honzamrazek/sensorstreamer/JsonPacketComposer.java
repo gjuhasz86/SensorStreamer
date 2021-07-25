@@ -4,11 +4,13 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.os.SystemClock;
 
 import com.google.gson.Gson;
 
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.TimeUnit;
 
 import cz.honzamrazek.sensorstreamer.models.Packet;
 
@@ -19,27 +21,35 @@ public class JsonPacketComposer implements PacketComposer, SensorEventListener {
     int mTargetCount;
     Json mData;
     Set<Integer> mSeenTypes;
+    long timestampOffset;
 
     private class Vector1D {
-        public Vector1D(float[] values, long timestamp) {
+        public Vector1D(float[] values, long timestampNano) {
             this.value = values[0];
-            this.timestamp = timestamp;
+            long epochNano = timestampNano + timestampOffset;
+            this.timestamp = epochNano / 1000000L;
+            this.nano = epochNano % 1000000L;
         }
 
         float value;
         long timestamp;
+        long nano;
     }
 
     private class Vector3D {
-        public Vector3D(float[] values, long timestamp) {
+        public Vector3D(float[] values, long timestampNano) {
             value = new float[3];
             for (int i = 0; i != 3; i++)
                 this.value[i] = values[i];
-            this.timestamp = timestamp;
+
+            long epochNano = timestampNano + timestampOffset;
+            this.timestamp = epochNano / 1000000L;
+            this.nano = epochNano % 1000000L;
         }
 
         float[] value;
         long timestamp;
+        long nano;
     }
 
     private class Json {
@@ -59,6 +69,10 @@ public class JsonPacketComposer implements PacketComposer, SensorEventListener {
     public JsonPacketComposer(SensorManager manager, Packet packet) {
         mManager = manager;
         mPacket = packet;
+        long currentMillis = System.currentTimeMillis();
+        long currentNano = TimeUnit.NANOSECONDS.convert(currentMillis, TimeUnit.MILLISECONDS);
+        long uptimeNano = SystemClock.elapsedRealtimeNanos();
+        timestampOffset = currentNano - uptimeNano;
     }
 
 
